@@ -70,9 +70,11 @@ export function sendQuote(state,id) {
   const demand=state.demands.find(d=>d.id===quote.demandId);const offer=state.offers.find(o=>o.id===quote.offerId);
   checkQuoteSend(quote,offer,state.verifications[demand.id],demand.conversation,quote.controlVersion,state.time);
   quote.status='sent';demand.stage='sent';
-  quote.messages=[{role:'sales',text:`您好，${demand.quantity} 台 ${demand.product} 的报价为 USD ${(quote.unitPriceMinor/100).toFixed(2)} / 台，合计 USD ${(quote.totalMinor/100).toFixed(2)}。运费、税费和最终交付条件需另行确认，报价有效期以报价单为准。`},{role:'customer',text:'报价收到了，谢谢。我再确认一下采购安排。'}];
+  quote.messages=initialQuoteMessages(demand,quote);
   quote.replyScenarios=[];
   record(state,'报价已人工确认并模拟发送',customerById(demand.customerId).owner+' · 销售',`${id} · 本次发送前已复核库存、核验时效和报价截止时间`,'send');
+}
+function initialQuoteMessages(demand,quote){return [{role:'sales',text:`Hi, our quotation for ${demand.quantity} units of ${demand.product} is USD ${(quote.unitPriceMinor/100).toFixed(2)} per unit, totaling USD ${(quote.totalMinor/100).toFixed(2)}. Freight, taxes and delivery terms require separate confirmation. Please refer to the quotation for its validity.`},{role:'customer',text:'Thanks, I have received your quotation. Let me confirm our purchasing plans.'}];
 }
 export function handoff(state,demandId) {
   const demand=state.demands.find(d=>d.id===demandId);if(!demand) throw new Error('询单不存在');
@@ -97,9 +99,9 @@ export function simulateCustomerReply(state,quoteId,scenario) {
  const d=state.demands.find(d=>d.id===q.demandId);
  if(d.conversation.mode==='human')throw new Error('已转人工，AI 不再自动回复');
  const replies={
-  negotiate:['如果采购这批数量，价格还能优惠一点吗？','已记录您的议价请求，我会交给业务员确认。当前报价保持不变，折扣需人工批准。'],
-  delivery:[`这批货可以发到${d.delivery}吗？大概什么时候能发出？`,'已记录交付问题，采购和业务员会进一步确认物流、运费及发货时间；目前不承诺具体交期。'],
-  purchase:[`价格可以，我想购买这 ${d.quantity} 台。请帮我锁货并提供付款信息。`,'已收到您的购买意向，我已转给负责业务员跟进。锁货、付款和开单将由业务员确认，AI 停止自动回复。']
+  negotiate:['Could you offer a better price for this quantity?','Thank you for your request. I will ask our sales representative to review it. The current quotation remains unchanged until any discount is approved.'],
+  delivery:[`Can you ship this order to ${deliveryCity(d.delivery)}? When could it be dispatched?`,'Our purchasing and sales teams will confirm shipping options, freight charges and dispatch timing. We cannot confirm a delivery date yet.'],
+  purchase:[`The price works for us. We would like to purchase ${d.quantity} units. Please reserve the stock and send the payment details.`,'Thank you for confirming your interest. I have handed this conversation over to your sales representative, who will confirm stock reservation, payment details and the order. Automated replies will now stop.']
  };
  if(!replies[scenario])throw new Error('未知演示场景');
  q.replyScenarios??=[];if(q.replyScenarios.includes(scenario))throw new Error('这段客户回复已演示');
@@ -111,6 +113,18 @@ export function simulateSalesReply(state,quoteId) {
  const q=state.quotes.find(q=>q.id===quoteId);if(!q||q.status!=='sent')throw new Error('请先模拟发送报价');
  const d=state.demands.find(d=>d.id===q.demandId);if(d.conversation.mode!=='human')throw new Error('请先转人工接管');
  if(q.salesReplied)throw new Error('业务员回复已演示');
- q.messages??=[];q.messages.push({role:'sales',text:`您好，我是 ${customerById(d.customerId).owner}，已接手这笔需求。我会与采购复核库存，并与您确认交付和付款安排后再推进订单。`});q.salesReplied=true;
+ q.messages??=[];q.messages.push({role:'sales',text:`Hi, I am ${salesName(d.customerId)}, your sales representative. I have taken over this request. I will recheck stock with our purchasing team and confirm delivery and payment arrangements with you before proceeding.`});q.salesReplied=true;
  record(state,'模拟业务员接手回复',customerById(d.customerId).owner+' · 销售',`${q.id} · 尚未实际锁货或收款`,'conversation');
+}
+
+export function deliveryCity(city){return {'迪拜':'Dubai','拉各斯':'Lagos','墨西哥城':'Mexico City','孟买':'Mumbai','沙迦':'Sharjah','圣保罗':'São Paulo'}[city]||city;}
+function salesName(customerId){return {'林悦':'Lin Yue','陈晨':'Chen Chen','周可':'Zhou Ke'}[customerById(customerId).owner];}
+// Regenerate only preset dialogue on read so older saved demo progress uses English too.
+export function englishConversation(state,quote) {
+ const copy=structuredClone(state),q=copy.quotes.find(x=>x.id===quote.id),d=copy.demands.find(x=>x.id===q.demandId);
+ const scenarios=q.replyScenarios||[];const salesReplied=q.salesReplied;
+ d.conversation.mode='ai';q.status='sent';q.messages=initialQuoteMessages(d,q);q.replyScenarios=[];q.salesReplied=false;
+ for(const scenario of scenarios)simulateCustomerReply(copy,q.id,scenario);
+ if(salesReplied){d.conversation.mode='human';simulateSalesReply(copy,q.id);}
+ return q.messages;
 }

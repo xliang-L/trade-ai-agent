@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { initialState,candidates,verifySupply,generateQuote,sendQuote,handoff,newSupply,expireVerification,simulateCustomerReply,simulateSalesReply } from '../apps/web/demo/model.js';
+import { initialState,candidates,verifySupply,generateQuote,sendQuote,handoff,newSupply,expireVerification,simulateCustomerReply,simulateSalesReply,englishConversation } from '../apps/web/demo/model.js';
 test('demo excludes expired low-price supplier and does not overwrite suppliers',()=>{
  const s=initialState();assert.deepEqual(candidates(s,s.demands[0]).map(o=>o.id),['s1','s2']);assert.equal(s.offers.filter(o=>o.productId===s.demands[0].productId).length,3);
 });
@@ -37,4 +37,11 @@ test('post quote conversation preserves price, routes purchase to human and stop
  simulateCustomerReply(s,q.id,'negotiate');assert.equal(q.unitPriceMinor,28500);assert.throws(()=>simulateCustomerReply(s,q.id,'negotiate'),/已演示/);
  simulateCustomerReply(s,q.id,'delivery');simulateCustomerReply(s,q.id,'purchase');assert.equal(s.demands[0].stage,'human');
  assert.throws(()=>simulateCustomerReply(s,q.id,'delivery'),/不再自动回复/);simulateSalesReply(s,q.id);assert.equal(q.messages.at(-1).role,'sales');assert.throws(()=>simulateSalesReply(s,q.id),/已演示/);
+});
+
+test('English dialogue renders older saved progress without changing price, expiry or audit',()=>{
+ const s=initialState();verifySupply(s,'d1','s1',200,27800);const q=generateQuote(s,'d1');sendQuote(s,q.id);
+ simulateCustomerReply(s,q.id,'delivery');simulateCustomerReply(s,q.id,'purchase');simulateSalesReply(s,q.id);expireVerification(s,'d1');
+ q.messages=[{role:'sales',text:'旧中文回复'}];const before=JSON.stringify(s),messages=englishConversation(s,q);
+ assert.equal(JSON.stringify(s),before);assert.ok(messages.some(m=>m.text.includes('Dubai')));assert.ok(messages.every(m=>!/[\u4e00-\u9fff]/.test(m.text)));assert.equal(messages.at(-1).role,'sales');
 });
