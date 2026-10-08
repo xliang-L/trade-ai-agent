@@ -34,7 +34,7 @@ test('sales price honors target, permits negotiated price and blocks below inter
 test('post quote conversation preserves price, routes purchase to human and stops AI',()=>{
  const s=initialState();verifySupply(s,'d1','s1',200,27800);const q=generateQuote(s,'d1');
  assert.throws(()=>simulateCustomerReply(s,q.id,'purchase'),/先模拟发送/);sendQuote(s,q.id);
- simulateCustomerReply(s,q.id,'negotiate');assert.equal(q.unitPriceMinor,28500);assert.throws(()=>simulateCustomerReply(s,q.id,'negotiate'),/已演示/);
+ simulateCustomerReply(s,q.id,'negotiate');assert.equal(q.unitPriceMinor,28400);assert.throws(()=>simulateCustomerReply(s,q.id,'negotiate'),/已演示/);
  simulateCustomerReply(s,q.id,'delivery');simulateCustomerReply(s,q.id,'purchase');assert.equal(s.demands[0].stage,'human');
  assert.throws(()=>simulateCustomerReply(s,q.id,'delivery'),/不再自动回复/);simulateSalesReply(s,q.id);assert.equal(q.messages.at(-1).role,'sales');assert.throws(()=>simulateSalesReply(s,q.id),/已演示/);
 });
@@ -44,4 +44,13 @@ test('English dialogue renders older saved progress without changing price, expi
  simulateCustomerReply(s,q.id,'delivery');simulateCustomerReply(s,q.id,'purchase');simulateSalesReply(s,q.id);expireVerification(s,'d1');
  q.messages=[{role:'sales',text:'旧中文回复'}];const before=JSON.stringify(s),messages=englishConversation(s,q);
  assert.equal(JSON.stringify(s),before);assert.ok(messages.some(m=>m.text.includes('Dubai')));assert.ok(messages.every(m=>!/[\u4e00-\u9fff]/.test(m.text)));assert.equal(messages.at(-1).role,'sales');
+});
+
+test('authorized concession is capped, audited, expires and escalates further bargaining',()=>{
+ const s=initialState();verifySupply(s,'d1','s1',200,27800);const q=generateQuote(s,'d1');sendQuote(s,q.id);simulateCustomerReply(s,q.id,'negotiate');
+ assert.equal(q.unitPriceMinor,28400);assert.equal(q.totalMinor,5680000);assert.equal(q.discountUsedMinor,100);assert.equal(q.priceHistory[0].unitPriceMinor,28500);
+ assert.ok(englishConversation(s,q).some(m=>m.text.includes('284.00')));assert.equal(q.discountUsedMinor,100);
+ simulateCustomerReply(s,q.id,'negotiateMore');assert.equal(q.unitPriceMinor,28400);assert.equal(s.demands[0].stage,'human');
+ const expired=initialState();verifySupply(expired,'d1','s1',200,27800);const old=generateQuote(expired,'d1');sendQuote(expired,old.id);expireVerification(expired,'d1');assert.throws(()=>simulateCustomerReply(expired,old.id,'negotiate'),/verification_expired/);assert.equal(old.unitPriceMinor,28500);
+ const floor=initialState();verifySupply(floor,'d1','s1',200,27800);const minimum=generateQuote(floor,'d1',28200);sendQuote(floor,minimum.id);simulateCustomerReply(floor,minimum.id,'negotiate');assert.equal(minimum.unitPriceMinor,28200);assert.equal(floor.demands[0].stage,'human');
 });
