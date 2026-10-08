@@ -47,15 +47,19 @@ export function verifySupply(state,demandId,offerId,quantity,costMinor) {
   demand.stage='verified';demand.offerId=offerId;
   record(state,'库存与底价已人工核验','王磊 · 采购',`${customerById(demand.customerId).name} · ${offer.supplier} / ${quantity} 台 / USD ${(costMinor/100).toFixed(2)}`,'verify');
 }
-export function generateQuote(state,demandId) {
+export function generateQuote(state,demandId,finalPriceMinor) {
   const demand=state.demands.find(d=>d.id===demandId); if(!demand) throw new Error('询单不存在');
   if(demand.conversation.mode==='human') throw new Error('该会话已由人工接管');
   const verification=state.verifications[demandId]; const offer=state.offers.find(o=>o.id===verification?.offerId);
   if(!offer) throw new Error('请先由采购核验库存与底价');
-  const quote=calculateQuote(demand,offer,verification,{version:'demo-standard-v1',markupMinor:400,minimumProfitMinor:200,validityMs:48*3600000},state.time);
+  const floorPriceMinor=verification.costMinor+400;
+  const suggestedPriceMinor=Math.max(Math.round(demand.target*100),floorPriceMinor);
+  const price=finalPriceMinor??suggestedPriceMinor;
+  if(!Number.isSafeInteger(price)||price<floorPriceMinor) throw new Error('最终报价不能低于内部底价');
+  const quote=calculateQuote(demand,offer,verification,{version:'demo-sales-confirm-v2',markupMinor:price-verification.costMinor,minimumProfitMinor:200,validityMs:48*3600000},state.time);
   const old=state.quotes.find(q=>q.demandId===demandId&&q.status==='draft');
   if(old) return old;
-  const item={...quote,verificationSnapshot:{...verification},id:`QT-20261008-${String(state.quotes.length+1).padStart(3,'0')}`,status:'draft',controlVersion:demand.conversation.controlVersion};
+  const item={...quote,floorPriceMinor,suggestedPriceMinor,customerTargetMinor:Math.round(demand.target*100),verificationSnapshot:{...verification},id:`QT-20261008-${String(state.quotes.length+1).padStart(3,'0')}`,status:'draft',controlVersion:demand.conversation.controlVersion};
   state.quotes.push(item);demand.stage='quoted';
   record(state,'已生成报价草稿',customerById(demand.customerId).owner+' · 销售',`${item.id} · USD ${(quote.unitPriceMinor/100).toFixed(2)} / 台，待人工确认`,'quote');return item;
 }
