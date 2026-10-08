@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { initialState,candidates,verifySupply,generateQuote,sendQuote,handoff,newSupply,expireVerification } from '../apps/web/demo/model.js';
+import { initialState,candidates,verifySupply,generateQuote,sendQuote,handoff,newSupply,expireVerification,simulateCustomerReply,simulateSalesReply } from '../apps/web/demo/model.js';
 test('demo excludes expired low-price supplier and does not overwrite suppliers',()=>{
  const s=initialState();assert.deepEqual(candidates(s,s.demands[0]).map(o=>o.id),['s1','s2']);assert.equal(s.offers.filter(o=>o.productId===s.demands[0].productId).length,3);
 });
@@ -29,4 +29,12 @@ test('sales price honors target, permits negotiated price and blocks below inter
  assert.throws(()=>generateQuote(s,'d1',28199),/内部底价/);assert.equal(s.quotes.length,0);
  const q=generateQuote(s,'d1',28400);assert.equal(q.unitPriceMinor,28400);assert.equal(q.floorPriceMinor,28200);assert.equal(q.suggestedPriceMinor,28500);
  const low=initialState();low.demands[0].target=270;verifySupply(low,'d1','s1',200,27800);assert.equal(generateQuote(low,'d1').unitPriceMinor,28200);
+});
+
+test('post quote conversation preserves price, routes purchase to human and stops AI',()=>{
+ const s=initialState();verifySupply(s,'d1','s1',200,27800);const q=generateQuote(s,'d1');
+ assert.throws(()=>simulateCustomerReply(s,q.id,'purchase'),/先模拟发送/);sendQuote(s,q.id);
+ simulateCustomerReply(s,q.id,'negotiate');assert.equal(q.unitPriceMinor,28500);assert.throws(()=>simulateCustomerReply(s,q.id,'negotiate'),/已演示/);
+ simulateCustomerReply(s,q.id,'delivery');simulateCustomerReply(s,q.id,'purchase');assert.equal(s.demands[0].stage,'human');
+ assert.throws(()=>simulateCustomerReply(s,q.id,'delivery'),/不再自动回复/);simulateSalesReply(s,q.id);assert.equal(q.messages.at(-1).role,'sales');assert.throws(()=>simulateSalesReply(s,q.id),/已演示/);
 });
