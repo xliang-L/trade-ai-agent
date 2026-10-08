@@ -13,7 +13,7 @@ await writeFile(path.join(output,'domain.js'),ts.transpileModule(domain,{compile
 console.log('Built demo: '+output);
 // Standalone presentation copy: no HTTP server, dependencies or external assets.
 const html=await readFile(path.join(src,'index.html'),'utf8');
-const css=(await readFile(path.join(src,'styles.css'),'utf8')).replace(/^@import[^;]+;\s*/,'');
+const css=(await readFile(path.join(src,'styles.css'),'utf8')).replace(/^@import[^\r\n]*(?:\r?\n|$)/,'');
 const domainJS=(await readFile(path.join(output,'domain.js'),'utf8')).replace(/\bexport\s+(?=function|const|class)/g,'');
 const modelJS=model.replace(/^import[^\n]*\n/,'').replace(/\bexport\s+(?=function|const|class)/g,'');
 const appJS=(await readFile(path.join(src,'app.js'),'utf8')).replace(/^import[^\n]*\n/,'');
