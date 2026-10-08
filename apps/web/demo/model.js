@@ -11,15 +11,15 @@ export const customers = [
 ];
 export function initialState() {
   const offers = [
-    { id:'s1',supplier:'Supplier A',kind:'external',productId:'iphone13-128-midnight',product:'iPhone 13',spec:'128GB · Midnight · 国际版',quantity:260,reserved:0,costMinor:27800,currency:'USD',warehouse:'香港',expiresAt:DEMO_TIME+28*3600000,version:1,active:true,score:'履约记录稳定',updated:'今天 14:30' },
-    { id:'s2',supplier:'Supplier B',kind:'external',productId:'iphone13-128-midnight',product:'iPhone 13',spec:'128GB · Midnight · 国际版',quantity:400,reserved:0,costMinor:28000,currency:'USD',warehouse:'香港',expiresAt:DEMO_TIME+20*3600000,version:1,active:true,score:'库存需再次确认',updated:'今天 13:50' },
+    { id:'s1',supplier:'Supplier A',kind:'external',productId:'iphone13-128-midnight',product:'iPhone 13',spec:'128GB · Midnight · 国际版',quantity:260,reserved:0,costMinor:27800,currency:'USD',warehouse:'香港',expiresAt:DEMO_TIME+48*3600000,version:1,active:true,score:'履约记录稳定',updated:'今天 14:30' },
+    { id:'s2',supplier:'Supplier B',kind:'external',productId:'iphone13-128-midnight',product:'iPhone 13',spec:'128GB · Midnight · 国际版',quantity:400,reserved:0,costMinor:28000,currency:'USD',warehouse:'香港',expiresAt:DEMO_TIME+48*3600000,version:1,active:true,score:'库存需再次确认',updated:'今天 13:50' },
     { id:'s3',supplier:'Supplier C',kind:'external',productId:'iphone13-128-midnight',product:'iPhone 13',spec:'128GB · Midnight · 国际版',quantity:300,reserved:0,costMinor:27400,currency:'USD',warehouse:'深圳',expiresAt:DEMO_TIME-3*3600000,version:1,active:true,score:'已停止推荐',updated:'10 月 6 日 12:30' },
     { id:'s4',supplier:'公司自有库存',kind:'internal',productId:'redmi-note13-256',product:'Redmi Note 13',spec:'256GB · 黑色 · 国际版',quantity:240,reserved:40,costMinor:14300,currency:'USD',warehouse:'深圳',expiresAt:DEMO_TIME+48*3600000,version:1,active:true,score:'可售数量已扣除锁定',updated:'今天 13:20' },
     { id:'s5',supplier:'Supplier D',kind:'external',productId:'iphone14-256-blue',product:'iPhone 14',spec:'256GB · Blue · 国际版',quantity:100,reserved:0,costMinor:36200,currency:'USD',warehouse:'香港',expiresAt:DEMO_TIME+30*3600000,version:1,active:true,score:'历史交付准时',updated:'今天 14:00' },
     { id:'s6',supplier:'Supplier B',kind:'external',productId:'galaxy-a15-128',product:'Galaxy A15',spec:'128GB · 蓝黑色 · 国际版',quantity:180,reserved:0,costMinor:11500,currency:'USD',warehouse:'深圳',expiresAt:DEMO_TIME+8*3600000,version:1,active:true,score:'有效期即将结束',updated:'今天 07:30' },
   ];
   const demands = [
-    { id:'d1',customerId:'c1',productId:'iphone13-128-midnight',product:'iPhone 13',spec:'128GB · Midnight · 国际版',quantity:200,currency:'USD',target:285,stage:'matched',priority:'优先',last:'15:12',delivery:'迪拜',conversation:{mode:'ai',controlVersion:1} },
+    { id:'d1',customerId:'c1',productId:'iphone13-128-midnight',product:'iPhone 13',spec:'128GB · Midnight · 国际版',quantity:200,currency:'USD',target:285,fieldsConfirmed:false,stage:'collecting',priority:'优先',last:'15:12',delivery:'迪拜',conversation:{mode:'ai',controlVersion:1} },
     { id:'d2',customerId:'c2',productId:'galaxy-a25-128',product:'Galaxy A25',spec:'128GB · 蓝色 · 国际版',quantity:150,currency:'USD',target:175,stage:'waiting',priority:'到货跟进',last:'14:48',delivery:'拉各斯',conversation:{mode:'ai',controlVersion:1} },
     { id:'d3',customerId:'c3',productId:'iphone14-256-blue',product:'iPhone 14',spec:'256GB · Blue · 国际版',quantity:80,currency:'USD',target:370,stage:'matched',priority:'优先',last:'14:05',delivery:'墨西哥城',conversation:{mode:'ai',controlVersion:1} },
     { id:'d4',customerId:'c4',productId:'redmi-note13-256',product:'Redmi Note 13',spec:'256GB · 黑色 · 国际版',quantity:120,currency:'USD',target:150,stage:'matched',priority:'常规',last:'13:37',delivery:'孟买',conversation:{mode:'ai',controlVersion:1} },
@@ -39,10 +39,12 @@ export function record(state,action,actor,detail,type='operation') {
 }
 export function verifySupply(state,demandId,offerId,quantity,costMinor) {
   const demand=state.demands.find(d=>d.id===demandId); const offer=state.offers.find(o=>o.id===offerId);
+  if(demand?.fieldsConfirmed===false)throw new Error('请先补齐版本、颜色和交付要求');
+  if(demand?.needsReconfirmation)throw new Error('请先确认历史客户仍有采购需求');
   if (!demand || !offer || !candidates(state,demand).some(o=>o.id===offerId)) throw new Error('货源不满足数量、型号或有效期条件');
   if (!Number.isSafeInteger(quantity) || quantity<demand.quantity || quantity>offer.quantity-offer.reserved) throw new Error('核验数量不足或超过当前可售数量');
   if (costMinor!==offer.costMinor) throw new Error('核验成本与货源记录不一致，请重新确认');
-  state.verifications[demand.id]={offerId,offerVersion:offer.version,quantity,costMinor,currency:offer.currency,verifiedBy:'王磊 · 采购',expiresAt:Math.min(state.time+6*3600000,offer.expiresAt),revoked:false};
+  state.verifications[demand.id]={offerId,offerVersion:offer.version,quantity,costMinor,currency:offer.currency,verifiedBy:'王磊 · 采购',expiresAt:Math.min(state.time+48*3600000,offer.expiresAt),revoked:false};
   for (const quote of state.quotes) if (quote.demandId===demandId && ['draft','expired'].includes(quote.status)) quote.status='superseded';
   demand.stage='verified';demand.offerId=offerId;
   record(state,'库存与底价已人工核验','王磊 · 采购',`${customerById(demand.customerId).name} · ${offer.supplier} / ${quantity} 台 / USD ${(costMinor/100).toFixed(2)}`,'verify');
@@ -86,7 +88,7 @@ export function handoff(state,demandId,reason='purchase') {
 export function newSupply(state) {
   if(state.offers.some(o=>o.id==='s7')) throw new Error('该批模拟新货源已录入');
   state.offers.push({id:'s7',supplier:'Supplier A',kind:'external',productId:'galaxy-a25-128',product:'Galaxy A25',spec:'128GB · 蓝色 · 国际版',quantity:300,reserved:0,costMinor:16800,currency:'USD',warehouse:'香港',expiresAt:state.time+24*3600000,version:1,active:true,score:'匹配历史未成交需求',updated:'刚刚'});
-  const demand=state.demands.find(d=>d.id==='d2');if(demand.stage==='waiting') demand.stage='matched';
+  const demand=state.demands.find(d=>d.id==='d2');if(demand.stage==='waiting'){demand.stage='matched';demand.needsReconfirmation=true;}
   record(state,'新货源召回历史询单','王磊 · 采购','Galaxy A25 到货，自动找回 Daniel 的 150 台未成交需求','match');
 }
 export function expireVerification(state,demandId) {
@@ -145,12 +147,36 @@ export function englishConversation(state,quote) {
  d.conversation.mode='ai';q.status='sent';q.dialogueReplay=true;q.unitPriceMinor=q.originalPriceMinor??q.unitPriceMinor;q.totalMinor=q.unitPriceMinor*q.quantity;q.discountUsedMinor=0;q.messages=initialQuoteMessages(d,q);q.replyScenarios=[];q.salesReplied=false;
  for(const scenario of scenarios)simulateCustomerReply(copy,q.id,scenario);
  if(salesReplied){d.conversation.mode='human';simulateSalesReply(copy,q.id);}
+ if(quote.approvalDecision)q.messages.push({role:'sales',text:quote.approvalDecision==='approved'?`Our manager has approved USD ${(quote.unitPriceMinor/100).toFixed(2)} per unit for the full batch of ${quote.quantity} units, totaling USD ${(quote.totalMinor/100).toFixed(2)}, excluding freight and taxes. The original validity and stock confirmation requirements still apply.`:`Our manager has reviewed the request. We cannot approve a further reduction; the current USD ${(quote.unitPriceMinor/100).toFixed(2)} quotation remains available within its validity.`});
  return q.messages;
 }
 
 export function initialSalesReply(d,hasCandidates){
  const name=customerById(d.customerId).name.split(' ')[0],city=deliveryCity(d.delivery);
+ if(d.fieldsConfirmed===false)return `Hi ${name}, I can check options for ${d.quantity} units of ${d.product}, 128GB, around USD ${d.target.toFixed(2)} for ${city}. Which regional version and colour do you need? Is your budget for the phones only, and when would you need them delivered? This will help me check the right stock before quoting.`;
  return hasCandidates
  ? `Hi ${name}, ${d.quantity} units of ${d.product} for ${city}, with a target around USD ${d.target.toFixed(2)} per unit — understood. We have matching supply options to check, and I will verify the available quantity and latest price before quoting. Is your target for the phones only, or including freight to ${city}? Also, are you using your own forwarder, and when do you need the goods? That will help us compare the right offer.`
  : `Hi ${name}, I have your requirement for ${d.quantity} units of ${d.product} at around USD ${d.target.toFixed(2)} for ${city}. We do not have a matching verified offer today. Is this exact model essential, or would you consider an alternative? Let me know your buying deadline too, so we can keep the search focused and check back when a suitable offer comes in.`;
+}
+
+export function confirmDemand(state,id){
+ const d=state.demands.find(x=>x.id===id);if(!d)throw new Error('询单不存在');
+ d.fieldsConfirmed=true;d.needsReconfirmation=false;if(d.stage==='collecting')d.stage='matched';d.requiredArrival='14 days, subject to logistics confirmation';d.freight='Customer forwarder';
+ record(state,'客户需求已按 SOP 确认','预设客户回复',`${customerById(d.customerId).name} · 版本、容量、颜色、数量、目标市场、目标价和交付要求已确认`,'demand');
+}
+export function decideDiscount(state,id,approved,reason){
+ const q=state.quotes.find(x=>x.id===id),d=state.demands.find(x=>x.id===q?.demandId);if(!q||q.handoffReason!=='discount')throw new Error('没有待审批的特殊报价');
+ if(q.approvalDecision)throw new Error('审批已处理');if(!reason?.trim())throw new Error('请填写审批原因');
+ if(approved){const offer=state.offers.find(o=>o.id===q.offerId);checkQuoteSend(q,offer,state.verifications[d.id],{mode:'ai',controlVersion:q.controlVersion},q.controlVersion,state.time);
+ const proposed=q.unitPriceMinor-100;if(proposed<(q.floorPriceMinor??q.verificationSnapshot.costMinor+400))throw new Error('特殊报价仍不能低于内部底价');
+ q.priceHistory??=[];q.priceHistory.push({unitPriceMinor:q.unitPriceMinor,totalMinor:q.totalMinor,time:state.time});q.unitPriceMinor=proposed;q.totalMinor=proposed*q.quantity;
+ }
+ q.approvalDecision=approved?'approved':'rejected';q.approvalReason=reason.trim();
+ record(state,approved?'主管批准特殊报价':'主管拒绝特殊报价','赵经理 · 主管',`${q.id} · ${reason.trim()} · USD ${(q.unitPriceMinor/100).toFixed(2)} / 台`,'approval');
+}
+export function closeOutcome(state,id,won){
+ const d=state.demands.find(x=>x.id===id);if(d?.conversation.mode!=='human')throw new Error('最终结果由人工接管后记录');if(d.outcome)throw new Error('结果已记录');
+ const quote=[...state.quotes].reverse().find(x=>x.demandId===id);if(won&&quote?.handoffReason==='discount'&&!quote.approvalDecision)throw new Error('请先完成主管审批，再记录成交结果');
+ d.outcome=won?'won':'lost';d.lossReason=won?null:'客户暂缓采购，保留历史需求';
+ record(state,won?'模拟成交结果回写 CRM':'未成交原因回写历史需求池',customerById(d.customerId).owner+' · 销售',`${customerById(d.customerId).name} · ${d.product} / ${d.quantity} 台；仅记录模拟结果，未锁货或收款`,'outcome');
 }

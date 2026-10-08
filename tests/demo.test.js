@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { initialState,candidates,verifySupply,generateQuote,sendQuote,handoff,newSupply,expireVerification,simulateCustomerReply,simulateSalesReply,englishConversation } from '../apps/web/demo/model.js';
+import { initialState as rawInitialState,candidates,verifySupply,generateQuote,sendQuote,handoff,newSupply,expireVerification,simulateCustomerReply,simulateSalesReply,englishConversation,confirmDemand,decideDiscount,closeOutcome } from '../apps/web/demo/model.js';
+const initialState=()=>{const s=rawInitialState();s.demands[0].fieldsConfirmed=true;return s;};
 test('demo excludes expired low-price supplier and does not overwrite suppliers',()=>{
  const s=initialState();assert.deepEqual(candidates(s,s.demands[0]).map(o=>o.id),['s1','s2']);assert.equal(s.offers.filter(o=>o.productId===s.demands[0].productId).length,3);
 });
 test('demo progresses through verified quote, simulated send, and handoff',()=>{
- const s=initialState();verifySupply(s,'d1','s1',200,27800);const q=generateQuote(s,'d1');assert.equal(q.unitPriceMinor,28500);assert.equal(q.totalMinor,5700000);assert.equal(q.expiresAt,s.time+6*3600000);sendQuote(s,q.id);handoff(s,'d1');assert.equal(s.demands[0].stage,'human');assert.equal(s.demands[0].conversation.mode,'human');assert.equal(s.events.length,7);
+ const s=initialState();verifySupply(s,'d1','s1',200,27800);const q=generateQuote(s,'d1');assert.equal(q.unitPriceMinor,28500);assert.equal(q.totalMinor,5700000);assert.equal(q.expiresAt,s.time+48*3600000);sendQuote(s,q.id);handoff(s,'d1');assert.equal(s.demands[0].stage,'human');assert.equal(s.demands[0].conversation.mode,'human');assert.equal(s.events.length,7);
 });
 test('unverified or insufficient stock cannot progress into quote',()=>{
  const s=initialState();assert.throws(()=>generateQuote(s,'d1'),/先由采购核验/);assert.throws(()=>verifySupply(s,'d1','s1',199,27800),/数量/);assert.equal(s.events.length,3);
@@ -53,4 +54,11 @@ test('authorized concession is capped, audited, expires and escalates further ba
  simulateCustomerReply(s,q.id,'negotiateMore');assert.equal(q.unitPriceMinor,28400);assert.equal(s.demands[0].stage,'human');
  const expired=initialState();verifySupply(expired,'d1','s1',200,27800);const old=generateQuote(expired,'d1');sendQuote(expired,old.id);expireVerification(expired,'d1');assert.throws(()=>simulateCustomerReply(expired,old.id,'negotiate'),/verification_expired/);assert.equal(old.unitPriceMinor,28500);
  const floor=initialState();verifySupply(floor,'d1','s1',200,27800);const minimum=generateQuote(floor,'d1',28200);sendQuote(floor,minimum.id);simulateCustomerReply(floor,minimum.id,'negotiate');assert.equal(minimum.unitPriceMinor,28200);assert.equal(floor.demands[0].stage,'human');
+});
+
+test('SOP and historic reconfirmation gate verification; supervisor decisions and outcomes are audited',()=>{
+ const s=rawInitialState();assert.throws(()=>verifySupply(s,'d1','s1',200,27800),/补齐/);confirmDemand(s,'d1');verifySupply(s,'d1','s1',200,27800);
+ const q=generateQuote(s,'d1');sendQuote(s,q.id);simulateCustomerReply(s,q.id,'negotiate');simulateCustomerReply(s,q.id,'negotiateMore');
+ assert.throws(()=>decideDiscount(s,q.id,true,''),/原因/);decideDiscount(s,q.id,true,'整批采购，利润符合底线');assert.equal(q.unitPriceMinor,28300);closeOutcome(s,'d1',true);assert.equal(s.demands[0].outcome,'won');
+ newSupply(s);assert.throws(()=>verifySupply(s,'d2','s7',150,16800),/历史客户/);confirmDemand(s,'d2');verifySupply(s,'d2','s7',150,16800);
 });
