@@ -99,9 +99,9 @@ export function simulateCustomerReply(state,quoteId,scenario) {
  const d=state.demands.find(d=>d.id===q.demandId);
  if(d.conversation.mode==='human')throw new Error('已转人工，AI 不再自动回复');
  const replies={
-  negotiate:['Could you offer a better price for this quantity?','Thank you for your request. I will ask our sales representative to review it. The current quotation remains unchanged until any discount is approved.'],
-  delivery:[`Can you ship this order to ${deliveryCity(d.delivery)}? When could it be dispatched?`,'Our purchasing and sales teams will confirm shipping options, freight charges and dispatch timing. We cannot confirm a delivery date yet.'],
-  purchase:[`The price works for us. We would like to purchase ${d.quantity} units. Please reserve the stock and send the payment details.`,'Thank you for confirming your interest. I have handed this conversation over to your sales representative, who will confirm stock reservation, payment details and the order. Automated replies will now stop.']
+  negotiate:['Could you offer a better price for this quantity?',`For ${d.quantity} units, I understand that a small difference adds up. Is USD ${(q.unitPriceMinor/100).toFixed(2)} above your buying target, or are you comparing a delivered price? If you can confirm the full quantity and your intended order date, I can put those terms to our sales team for a price review. For now, please use the current quotation; any revised price will need confirmation.`],
+  delivery:[`Can you ship this order to ${deliveryCity(d.delivery)}? When could it be dispatched?`,`For ${deliveryCity(d.delivery)}, would you prefer to use your own freight forwarder, or have us check a shipping option? Please share the delivery postcode and your required arrival date. The quotation covers the units only, so I will keep freight separate and have the team confirm the dispatch schedule before you commit.`],
+  purchase:[`The price works for us. We would like to purchase ${d.quantity} units. Please reserve the stock and send the payment details.`,`Great, let us move this forward: ${d.quantity} units of ${d.product} at USD ${(q.unitPriceMinor/100).toFixed(2)} each, with a goods subtotal of USD ${(q.totalMinor/100).toFixed(2)}. Please send your company billing name and confirm whether you will use your own forwarder. I am bringing ${salesName(d.customerId)} into the conversation to confirm availability, arrange the pro forma invoice and provide verified payment instructions. The stock is not reserved yet; ${salesName(d.customerId)} will confirm that directly.`]
  };
  if(!replies[scenario])throw new Error('未知演示场景');
  q.replyScenarios??=[];if(q.replyScenarios.includes(scenario))throw new Error('这段客户回复已演示');
@@ -113,7 +113,7 @@ export function simulateSalesReply(state,quoteId) {
  const q=state.quotes.find(q=>q.id===quoteId);if(!q||q.status!=='sent')throw new Error('请先模拟发送报价');
  const d=state.demands.find(d=>d.id===q.demandId);if(d.conversation.mode!=='human')throw new Error('请先转人工接管');
  if(q.salesReplied)throw new Error('业务员回复已演示');
- q.messages??=[];q.messages.push({role:'sales',text:`Hi, I am ${salesName(d.customerId)}, your sales representative. I have taken over this request. I will recheck stock with our purchasing team and confirm delivery and payment arrangements with you before proceeding.`});q.salesReplied=true;
+ q.messages??=[];q.messages.push({role:'sales',text:`Hi, ${customerById(d.customerId).name.split(' ')[0]}, ${salesName(d.customerId)} here. I have your ${d.quantity}-unit ${d.product} enquiry and quotation ${q.id}, so you do not need to repeat the details. I will confirm the stock allocation with purchasing and prepare the pro forma invoice once we have your billing details and shipping arrangement. Please wait for my confirmation before treating the stock as reserved or making payment.`});q.salesReplied=true;
  record(state,'模拟业务员接手回复',customerById(d.customerId).owner+' · 销售',`${q.id} · 尚未实际锁货或收款`,'conversation');
 }
 
@@ -127,4 +127,11 @@ export function englishConversation(state,quote) {
  for(const scenario of scenarios)simulateCustomerReply(copy,q.id,scenario);
  if(salesReplied){d.conversation.mode='human';simulateSalesReply(copy,q.id);}
  return q.messages;
+}
+
+export function initialSalesReply(d,hasCandidates){
+ const name=customerById(d.customerId).name.split(' ')[0],city=deliveryCity(d.delivery);
+ return hasCandidates
+ ? `Hi ${name}, ${d.quantity} units of ${d.product} for ${city}, with a target around USD ${d.target.toFixed(2)} per unit — understood. We have matching supply options to check, and I will verify the available quantity and latest price before quoting. Is your target for the phones only, or including freight to ${city}? Also, are you using your own forwarder, and when do you need the goods? That will help us compare the right offer.`
+ : `Hi ${name}, I have your requirement for ${d.quantity} units of ${d.product} at around USD ${d.target.toFixed(2)} for ${city}. We do not have a matching verified offer today. Is this exact model essential, or would you consider an alternative? Let me know your buying deadline too, so we can keep the search focused and check back when a suitable offer comes in.`;
 }
