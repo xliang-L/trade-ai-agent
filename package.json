@@ -7,10 +7,12 @@
     "node": ">=24.0.0 <25"
   },
   "scripts": {
-    "test": "node --test tests/*.test.ts",
+    "test": "node --test tests/*.test.ts tests/*.test.js",
     "demo": "node apps/agent-worker/demo.ts",
     "typecheck": "tsc --noEmit",
-    "dev:api": "node apps/api/server.ts"
+    "dev:api": "node apps/api/server.ts",
+    "build:demo": "node scripts/build-demo.mjs",
+    "dev:demo": "node scripts/serve-demo.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.8"

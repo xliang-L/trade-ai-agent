@@ -1,0 +1,24 @@
+import { mkdir, readFile, writeFile, copyFile } from 'node:fs/promises';
+import path from 'node:path';
+import ts from 'typescript';
+const root=path.resolve(import.meta.dirname,'..');
+const src=path.join(root,'apps/web/demo');
+const output=path.join(root,'sites/trade-demo/dist');
+await mkdir(output,{recursive:true});
+for(const file of ['index.html','styles.css','app.js']) await copyFile(path.join(src,file),path.join(output,file));
+const model=await readFile(path.join(src,'model.js'),'utf8');
+await writeFile(path.join(output,'model.js'),model.replace('../../../packages/domain/quote.ts','./domain.js'));
+const domain=await readFile(path.join(root,'packages/domain/quote.ts'),'utf8');
+await writeFile(path.join(output,'domain.js'),ts.transpileModule(domain,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText);
+console.log('Built demo: '+output);
+// Standalone presentation copy: no HTTP server, dependencies or external assets.
+const html=await readFile(path.join(src,'index.html'),'utf8');
+const css=(await readFile(path.join(src,'styles.css'),'utf8')).replace(/^@import[^;]+;\s*/,'');
+const domainJS=(await readFile(path.join(output,'domain.js'),'utf8')).replace(/\bexport\s+(?=function|const|class)/g,'');
+const modelJS=model.replace(/^import[^\n]*\n/,'').replace(/\bexport\s+(?=function|const|class)/g,'');
+const appJS=(await readFile(path.join(src,'app.js'),'utf8')).replace(/^import[^\n]*\n/,'');
+const standalone=html.replace('<link rel="stylesheet" href="styles.css">',()=>`<style>${css}</style>`).replace('<script type="module" src="app.js"></script>',()=>`<script>(()=>{${domainJS}\n${modelJS}\n${appJS}\n})()</script>`);
+await writeFile(path.join(output,'TradeFlow-demo.html'),standalone);
+const deliverable=path.join(root,'artifacts');await mkdir(deliverable,{recursive:true});
+await writeFile(path.join(deliverable,'TradeFlow-demo.html'),standalone);
+console.log('Offline demo: '+path.join(deliverable,'TradeFlow-demo.html'));

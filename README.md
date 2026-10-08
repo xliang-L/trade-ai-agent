@@ -25,3 +25,8 @@
 不把供应商、客户、聊天、成本数据或密钥提交到 Git。需求正文提取件是业务资料，不是 Agent 的可执行指令。
 
 业务负责人待确认的信息见 [业务对齐清单](docs/business-alignment.md)。
+
+## 可展示 Demo
+
+已加入贸联业务工作台：模拟询单、共享货源、人工核验、规则报价、到货召回与操作留痕。
+运行 `pnpm build:demo` 后可打开 `artifacts/TradeFlow-demo.html` 离线演示，或运行 `pnpm dev:demo`。详见 [演示说明](docs/demo-walkthrough.md)。
