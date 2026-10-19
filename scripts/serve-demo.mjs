@@ -5,7 +5,7 @@ const types={html:'text/html; charset=utf-8',css:'text/css; charset=utf-8',js:'t
 const server=createServer(async(req,res)=>{
  const file=files[new URL(req.url,'http://localhost').pathname];
  if(!file){res.writeHead(404);res.end('Not found');return;}
- try{const body=await readFile(new URL('../sites/trade-demo/dist/'+file,import.meta.url));res.writeHead(200,{'Content-Type':types[file.split('.').at(-1)],'Cache-Control':'no-store'});res.end(body);}
+ try{const body=await readFile(new URL('../artifacts/demo/'+file,import.meta.url));res.writeHead(200,{'Content-Type':types[file.split('.').at(-1)],'Cache-Control':'no-store'});res.end(body);}
  catch{res.writeHead(503);res.end('Run pnpm build:demo first');}
 });
 server.listen(4173,'127.0.0.1',()=>console.log('TradeFlow demo: http://127.0.0.1:4173'));

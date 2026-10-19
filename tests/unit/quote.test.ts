@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateQuote, checkQuoteSend, matchOffers } from '../packages/domain/quote.ts';
-import type { Offer, Verification } from '../packages/domain/quote.ts';
+import { calculateQuote, checkQuoteSend, matchOffers } from '../../packages/domain/quote.ts';
+import type { Offer, Verification } from '../../packages/domain/quote.ts';
 const now = 1000000;
 const demand = { id: 'd', productId: 'sku-1', quantity: 10, currency: 'USD' };
 const offer: Offer = { id: 'a', version: 1, kind: 'external', productId: 'sku-1', currency: 'USD', quantity: 20, reserved: 0, costMinor: 20000, expiresAt: now + 10000, active: true };

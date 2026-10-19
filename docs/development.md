@@ -1,6 +1,6 @@
 # 第一版开发与验证
 
-已实现库存核验与报价领域逻辑、PostgreSQL SQL 迁移、PGlite 本地持久化开发数据库，以及本机演示 HTTP API。已有 12 项测试，覆盖关键报价风控、客户归属过滤、事务审计、重启恢复与 API 响应。
+已实现库存核验与报价领域逻辑、PostgreSQL SQL 迁移、PGlite 本地持久化开发数据库，以及本机演示 HTTP API。测试按用途分为 `tests/unit`（领域规则）、`tests/integration`（数据库与 HTTP）和 `tests/demo`（交互场景与打包），覆盖报价风控、客户归属过滤、事务审计、重启恢复和演示流程。
 
 PGlite 是本机开发使用的 PostgreSQL 运行环境，支持 Node 文件系统持久化，参见 [官方文档](https://pglite.dev/docs/)。生产独立 PostgreSQL 驱动、多进程行为及部署仍待实现与验证。
 
@@ -15,6 +15,8 @@ pnpm test
 pnpm demo
 pnpm dev:api
 ```
+
+业务演示另外运行 `pnpm build:demo`、`pnpm dev:demo`。静态站点构建到 `artifacts/demo/`，离线单文件生成到 `artifacts/TradeFlow-demo.html`；这两类生成产物均不进入 Git，构建不依赖本机的 Sites 发布仓库。
 
 API 仅监听 `127.0.0.1:3000`，身份固定为测试业务员 `demo-sales-a`，仅用于本机模拟验证，不能公网部署。开发数据位于 `.data/development`，不提交到 Git。
 

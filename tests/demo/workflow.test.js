@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { initialState as rawInitialState,candidates,verifySupply,generateQuote,sendQuote,handoff,newSupply,expireVerification,simulateCustomerReply,simulateSalesReply,englishConversation,confirmDemand,decideDiscount,closeOutcome } from '../apps/web/demo/model.js';
+import { initialState as rawInitialState,candidates,verifySupply,generateQuote,sendQuote,handoff,newSupply,expireVerification,simulateCustomerReply,simulateSalesReply,englishConversation,confirmDemand,decideDiscount,closeOutcome } from '../../apps/web/demo/model.js';
 const initialState=()=>{const s=rawInitialState();s.demands[0].fieldsConfirmed=true;return s;};
 test('demo excludes expired low-price supplier and does not overwrite suppliers',()=>{
  const s=initialState();assert.deepEqual(candidates(s,s.demands[0]).map(o=>o.id),['s1','s2']);assert.equal(s.offers.filter(o=>o.productId===s.demands[0].productId).length,3);

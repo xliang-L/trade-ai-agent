@@ -3,7 +3,7 @@ import path from 'node:path';
 import ts from 'typescript';
 const root=path.resolve(import.meta.dirname,'..');
 const src=path.join(root,'apps/web/demo');
-const output=path.join(root,'sites/trade-demo/dist');
+const output=path.join(root,'artifacts/demo');
 await mkdir(output,{recursive:true});
 for(const file of ['index.html','styles.css','app.js']) await copyFile(path.join(src,file),path.join(output,file));
 const model=await readFile(path.join(src,'model.js'),'utf8');

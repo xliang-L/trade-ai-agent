@@ -26,3 +26,6 @@ uploads/
 # Independent Sites checkout and generated presentation artifacts
 sites/
 artifacts/
+
+# Original business input remains local; public scope lives in docs/requirements.
+/外贸AI Agent需求规格说明书.docx
